@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   height="16"
+   viewBox="0 0 16 16"
+   width="16"
+   version="1.1"
+   id="svg2114"
+   sodipodi:docname="Chain.svg"
+   inkscape:version="1.0.2 (e86c870879, 2021-01-15)">
+  <metadata
+     id="metadata2120">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs2118" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="845"
+     inkscape:window-height="466"
+     id="namedview2116"
+     showgrid="false"
+     inkscape:zoom="18.216557"
+     inkscape:cx="7.8902098"
+     inkscape:cy="8"
+     inkscape:window-x="1941"
+     inkscape:window-y="563"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg2114" />
+  <path
+     d="m10.478 1037.4a2.4664 2.4663 0 0 0 -1.7804.7205 2.4664 2.4663 0 0 0 -.31408 3.1041l-3.559 3.5608a2.4664 2.4663 0 0 0 -3.1023.3121 2.4664 2.4663 0 0 0 0 3.4876 2.4664 2.4663 0 0 0 1.397.6955 2.4664 2.4663 0 0 0 .69561 1.397 2.4664 2.4663 0 0 0 3.4877 0 2.4664 2.4663 0 0 0 .31408-3.1041l3.5609-3.5608a2.4664 2.4663 0 0 0 3.1004-.3102 2.4664 2.4663 0 0 0 0-3.4875 2.4664 2.4663 0 0 0 -1.397-.6974 2.4664 2.4663 0 0 0 -.69561-1.3971 2.4664 2.4663 0 0 0 -1.7072-.7205z"
+     fill="#e0e0e0"
+     fill-opacity=".99608"
+     transform="translate(0 -1036.4)"
+     id="path2112"
+     style="fill:#ffccaa" />
+</svg>
