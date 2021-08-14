@@ -1,5 +1,7 @@
 tool
 extends Node
+const FBKIM_NODE_ID = 4  # THIS NODE'S INDENTIFIER
+
 
 #enum TYPES { Less_Than_Distance, Equal_To_Distance, More_Than_Distance}
 

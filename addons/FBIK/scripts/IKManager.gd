@@ -1,16 +1,21 @@
 tool
 extends Node
+const FBKIM_NODE_ID = 0  # THIS NODE'S INDENTIFIER
+
 
 ## CONSTANTS ###############################################################################################
 const VirtualSkeleton = preload("VirtualSkeleton.gd")
-const IKChain = preload("IKChain.gd")
-const IKPole = preload("IKPole.gd")
-const IKBind = preload("IKBind.gd")
-const IKForkBind = preload("IKForkBind.gd")
-const IKLookAt = preload("IKLookAt.gd")
-const IKExaggerator = preload("IKExaggerator.gd")
-const IKSolidifier = preload("IKSolidifier.gd")
-const IKDampedTransform = preload("IKDampedTransform.gd")
+
+### ALL OTHER NODES' IDS
+const FBKIM_CHAIN            = 1
+const FBKIM_POLE             = 2
+const FBKIM_LOOK_AT          = 3
+const FBKIM_BIND             = 4
+const FBKIM_FORK_BIND        = 5
+const FBKIM_EXAGGERATOR      = 6
+const FBKIM_SOLIDIFIER       = 7
+const FBKIM_DAMPED_TRANSFORM = 8
+
 const VOID_ID = "-1" ### Add a move dynamic way to do this
 
 var _bone_names_4_children := "VOID:-1"
@@ -21,9 +26,13 @@ export (bool)     var enabled  = false setget _tick_enabled
 export (NodePath) var skeleton = null setget _set_skeleton
 export (int)      var max_iterations = 5
 export (float)    var minimal_distance = 0.01
-export (bool)     var DEBUG_dump_bones = false
-export (String)   var DEBUG_bone_property = ""
-export (int)      var DEBUG_entry_count = -1
+
+### Debug ###
+var DEBUG_dump_bones = false   # Turn on
+var DEBUG_bone_property = ""   # name bone property(position, rotation, etc.); list all by default
+var DEBUG_entry_count = -1     # Show N bones; list all by default
+
+
 #### RUNTIME ENVIRONMENT
 func _set_skeleton( path_2_skel : NodePath ):
 	if Engine.editor_hint:
@@ -86,25 +95,31 @@ func _ready():
 			if DEBUG_dump_bones:
 				virt_skel.cshow()
 func _evaluate_drivers() -> void:
+	if virt_skel == null:
+		push_error("Tried to evaluate drivers but failed because there was no Skeleton Node assigned.")
+		return
+	
 	for node in self.get_children():
 		var type = node.get_script()
-		if type == IKChain:
-			_eval_chain_node( node )
-			_chain_count += 1
-		elif type == IKPole:
-			_eval_pole_node( node )
-		#elif type == IKBind:
-		#	_eval_bind_node( node )
-		#elif type == IKForkBind:
-		#	_eval_fork_bind_node( node )
-		elif type == IKLookAt:
-			_eval_look_at_node( node )
-		elif type == IKExaggerator:
-			_eval_exaggerator_node( node )
-		elif node is IKSolidifier:
-			_eval_solidifier_node( node )
-		elif type == IKDampedTransform:
-			_eval_damped_transform_node( node )
+		if node.get("FBKIM_NODE_ID") != null:
+			match(node.FBKIM_NODE_ID):
+				FBKIM_CHAIN:
+					_eval_chain_node( node )
+					_chain_count += 1
+				FBKIM_POLE:
+					_eval_pole_node( node )
+				FBKIM_BIND:
+					_eval_bind_node( node )
+				FBKIM_FORK_BIND:
+					_eval_fork_bind_node( node )
+				FBKIM_LOOK_AT:
+					_eval_look_at_node( node )
+				FBKIM_EXAGGERATOR:
+					_eval_exaggerator_node( node )
+				FBKIM_SOLIDIFIER:
+					_eval_solidifier_node( node )
+				FBKIM_DAMPED_TRANSFORM:
+					_eval_damped_transform_node( node )
 func _reevaluate_drivers() -> void:
 	_chain_count = 0
 	_chains.clear()
@@ -126,7 +141,7 @@ func _eval_pole_node( pole ) -> void:
 		return
 	
 	self._poles.push_back(pole)
-func _eval_bind_node( bind : IKBind ) -> void:
+func _eval_bind_node( bind ) -> void:
 	if not virt_skel.has_bone(bind.bone_1) or \
 		not virt_skel.has_bone(bind.bone_2) or \
 		not virt_skel.has_bone(bind.bone_3):
@@ -149,13 +164,13 @@ func _eval_look_at_node( look_at ):
 		return
 	
 	self._look_ats.push_back(look_at)
-func _eval_exaggerator_node( exaggerator : IKExaggerator ) -> void:
+func _eval_exaggerator_node( exaggerator ) -> void:
 	if not virt_skel.has_bone(exaggerator.bone_id):
 		push_error("IK Exaggerator [" + exaggerator.name + "] ignored. Invalid Bone Id.")
 		return
 	if not exaggerator.is_connected("multiplier_changed", self, "_on_exaggurator_change"):
 		var _trash = exaggerator.connect("multiplier_changed", self, "_on_exaggurator_change")
-func _eval_solidifier_node( solidifier : IKSolidifier ) -> void:
+func _eval_solidifier_node( solidifier ) -> void:
 	if not virt_skel.has_bone(solidifier.bone_id):
 		push_error("IK Solidifier [" + solidifier.name + "] ignored. Specified bone does not exist.")
 		return
@@ -163,12 +178,12 @@ func _eval_solidifier_node( solidifier : IKSolidifier ) -> void:
 		push_error("IK Solidifier [" + solidifier.name + "] ignored. The bone specified is a tip.")
 		return
 	virt_skel.set_bone_chain_modifier(solidifier.bone_id, VirtualSkeleton.MODIFIER.SOLID)
-func _eval_damped_transform_node( damped_transform : IKDampedTransform ) -> void:
+func _eval_damped_transform_node( damped_transform ) -> void:
 	if not virt_skel.has_bone(damped_transform.bone_id):
 		push_error("IK Damped Transform [" + damped_transform.name + "] ignored. Specified bone does not exist.")
 		return
 	virt_skel.set_bone_chain_modifier(damped_transform.bone_id, VirtualSkeleton.MODIFIER.DAMPED_TRANSFORM, damped_transform)
-func _eval_fork_bind_node ( fork_bind : IKForkBind ) -> void:
+func _eval_fork_bind_node ( fork_bind ) -> void:
 	if not virt_skel.has_bone(fork_bind.bone_1) or \
 		not virt_skel.has_bone(fork_bind.bone_2) or \
 		not virt_skel.has_bone(fork_bind.bone_3) or \
@@ -192,19 +207,19 @@ func solve_chains( inverse_transform : Transform ) -> void:
 	var diff : float = 0
 	## No need to solve if distance is closed
 	for d in _chains:
-		if d.get_script() == IKChain:
+		if d.FBKIM_NODE_ID == FBKIM_CHAIN:
 			diff += virt_skel.get_bone_position(d.tip_bone_id).distance_squared_to(inverse_transform.xform(d.get_target().origin))
 			
 	var can_solve : int = self.max_iterations
 	while can_solve > 0 and diff > self.minimal_distance * self.minimal_distance * self._chain_count:
 		## Solve Backwards
 		for d in _chains:
-			if d.get_script() == IKChain:
+			if d.FBKIM_NODE_ID == FBKIM_CHAIN:
 				solve_backwards( d.root_bone_id,
 					d.tip_bone_id,
 					inverse_transform * d.get_target(),
-					d.snap_back_strength )
-			#elif d is IKBind:
+					d.pull_strength )
+			#elif d.FBKIM_NODE_ID == FBKIM_BIND:
 			#	solve_bind( d.bone_1, d.bone_2, d.bone_3,
 			#				d.bone_2_correction_bone, d.bone_3_correction_bone,
 			#				d.get_12_length(), d.get_23_length(), d.get_31_length(),
@@ -214,7 +229,7 @@ func solve_chains( inverse_transform : Transform ) -> void:
 			#					b.bone_2_correction_bone, b.bone_3_correction_bone,
 			#					b.get_12_length(), b.get_23_length(), b.get_31_length(),
 			#					b.length_c2, b.length_c3)
-			#elif d is IKForkBind:
+			#elif d.FBKIM_NODE_ID == FBKIM_FORK_BIND:
 			#	solve_fork_bind(d.bone_1, d.bone_2, d.bone_3, d.bone_target,
 			#					d.length_1, d.length_2, d.length_3)
 		
@@ -224,7 +239,7 @@ func solve_chains( inverse_transform : Transform ) -> void:
 		## Measure Distance
 		diff = 0
 		for d in _chains:
-			if d.get_script() == IKChain:
+			if d.FBKIM_NODE_ID == FBKIM_CHAIN:
 				diff += virt_skel.get_bone_position(d.tip_bone_id).distance_squared_to(inverse_transform.xform(d.get_target().origin))
 		can_solve -= 1
 func solve_poles( inverse_transform : Transform ) -> void:

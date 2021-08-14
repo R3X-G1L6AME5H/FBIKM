@@ -1,5 +1,7 @@
 tool
 extends Position3D
+const FBKIM_NODE_ID = 3  # THIS NODE'S INDENTIFIER
+
 
 enum SIDE {UP, DOWN, LEFT, RIGHT, FORWARD, BACK}
 var bone_id : String
@@ -34,5 +36,6 @@ func _get_property_list():
 func _update_parameters( bone_names : String ) -> void:
 	self._bone_names = bone_names
 	property_list_changed_notify()
+
 func get_target() -> Transform:
 	return self.transform

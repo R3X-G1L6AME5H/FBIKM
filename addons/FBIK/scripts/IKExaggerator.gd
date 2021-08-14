@@ -1,5 +1,7 @@
 tool
 extends Node
+const FBKIM_NODE_ID = 6  # THIS NODE'S INDENTIFIER
+
 
 var bone_id : String
 export (float) var length_multiplier = 1.0 setget _set_length

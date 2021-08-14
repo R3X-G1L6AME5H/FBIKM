@@ -1,5 +1,7 @@
 tool
 extends Position3D
+const FBKIM_NODE_ID = 2  # THIS NODE'S INDENTIFIER
+
 
 enum SIDE {FORWARD, BACKWARD, LEFT, RIGHT}
 
@@ -47,11 +49,12 @@ func _get_property_list():
 ###############################################################################
 func _ready():
 	if Engine.editor_hint:
-		var IKManager = load("res://P4/IKManager.gd")
-		if get_parent() is IKManager:
-			var _trash = get_parent().connect("bone_names_obtained", self, "_update_parameters")
+		if get_parent().get("FBKIM_NODE_ID") == 0:  ## This is KinematicsManager's ID
+			get_parent().connect("bone_names_obtained", self, "_update_parameters")
+
 func _update_parameters( bone_names : String ) -> void:
 	self._bone_names = bone_names
 	property_list_changed_notify()
+
 func get_target() -> Transform:
 	return self.transform
