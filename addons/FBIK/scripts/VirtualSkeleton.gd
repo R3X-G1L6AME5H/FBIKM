@@ -2,11 +2,17 @@ extends Reference
 
 enum MODIFIER {
 	NONE = 0,
-	SOLID = 1,
-	DAMPED_TRANSFORM = 2
-	#BALL_AND_SOCKET = 4,
-	#HINGE = 8,
-	#TWIST = 16
+	BIND = 1,
+	FORK_BIND = 2,
+	CAGE_BIND = 4,
+	# BIND_SLAVE,
+	SOLID = 8,
+	DAMPED_TRANSFORM = 16,
+	LOOK_AT = 32
+	#BALL_AND_SOCKET = 32,
+	#HINGE = 64,
+	#TWIST = 128
+	
 }
 
 var bones := Dictionary()
@@ -82,7 +88,7 @@ func add_bone( bone_id : String, parent_id : String, transform : Transform, buil
 		### Solve rotation data
 		rotation               = transform.basis.get_rotation_quat(),
 		start_rotation         = transform.basis.get_rotation_quat(),
-		start_direction        = direction,
+		start_direction        = direction.normalized(),
 		### Solve Subbase data
 		weighted_vector_sum    = Vector3.ZERO,
 		weight_sum             = 0.0,
@@ -103,6 +109,76 @@ func add_bone( bone_id : String, parent_id : String, transform : Transform, buil
 	if parent_id == "-1":
 		roots.push_back(bone_id)
 		bones[ str(bone_id) ].initial_position = transform.origin
+func set_bone_modifier(bone_id : String, modifier : int, node = null) -> void:
+	if modifier == MODIFIER.LOOK_AT:
+		bones[bone_id].modifier_flags |= MODIFIER.LOOK_AT
+	
+	elif modifier == MODIFIER.BIND:
+		if node != null:
+			bones[node.bones[0]].modifier_flags |= MODIFIER.BIND
+			#bones[node.bones[1]].modifier_flags |= MODIFIER.BIND_SLAVE
+			#bones[node.bones[2]].modifier_flags |= MODIFIER.BIND_SLAVE
+		
+			## Later make the bind_idss appendable for interlinking binds
+			if not bones[node.bones[0]].has("bind_ids"):
+				bones[node.bones[0]].bind_ids = []
+			#if not bones[node.bones[1]].has("bind_ids"):
+			#	bones[node.bones[1]].bind_ids = []
+			#if not bones[node.bones[2]].has("bind_ids"):
+			#	bones[node.bones[2]].bind_ids = []
+			
+			bones[node.bones[0]].bind_ids.push_back(node.bind_id)
+			#bones[node.bones[1]].bind_ids.push_back(node.bind_id)
+			#bones[node.bones[2]].bind_ids.push_back(node.bind_id)
+		
+	elif modifier == MODIFIER.FORK_BIND:
+		if node != null:
+			bones[node.bone_1].modifier_flags |= MODIFIER.FORK_BIND
+			#bones[node.bone_2].modifier_flags |= MODIFIER.BIND_SLAVE
+			#bones[node.bone_3].modifier_flags |= MODIFIER.BIND_SLAVE
+			#bones[node.bone_target].modifier_flags |= MODIFIER.BIND_SLAVE
+			
+			if not bones[node.bone_1].has("fork_bind_ids"):
+				bones[node.bone_1].fork_bind_ids = []
+			#if not bones[node.bone_2].has("fork_bind_ids"):
+			#	bones[node.bone_2].fork_bind_ids = []
+			#if not bones[node.bone_3].has("fork_bind_ids"):
+			#	bones[node.bone_3].fork_bind_ids = []
+			#if not bones[node.bone_target].has("fork_bind_ids"):
+			#	bones[node.bone_target].fork_bind_ids = []
+			
+			bones[node.bone_1].fork_bind_ids.push_back(node.bind_id)
+			#bones[node.bone_2].fork_bind_ids.push_back(node.bind_id)
+			#bones[node.bone_3].fork_bind_ids.push_back(node.bind_id)
+			#bones[node.bone_target].fork_bind_ids.push_back(node.bind_id)
+	
+	elif modifier == MODIFIER.CAGE_BIND:
+		if node != null:
+			bones[node.backbone_1].modifier_flags |= MODIFIER.CAGE_BIND
+			
+			bones[node.backbone_1].cage_bind_id = node.bind_id
+	
+	else:
+		var bone_queue : PoolStringArray = []
+		var current_bone = bone_id
+		while true:
+			if current_bone == "-1":
+				break
+			else:
+				for child in bones[current_bone].children:
+					bone_queue.push_back(child)
+			
+			bones[current_bone].modifier_flags |= modifier
+			bones[current_bone].modifier_master = bone_id
+			if modifier & MODIFIER.DAMPED_TRANSFORM and node != null:
+				bones[current_bone].velocity = Vector3.ZERO
+				update_bone_damped_transform(current_bone, node)
+			
+			if bones[current_bone].children.size() != 0:
+				current_bone = bone_queue[0]
+				bone_queue.remove(0)
+			else:
+				current_bone = "-1"
 
 ### DESTRUCTOR
 func _notification(what):
@@ -122,7 +198,7 @@ func bake() -> void:
 func revert() -> void:
 	skel.clear_bones_global_pose_override()
 
-### GETTERS
+### GETTERS #####################################################################################################
 ## Navigating stuff
 func get_bone_parent( bone_id : String ) -> String:
 	if bones.has(bone_id):
@@ -140,6 +216,8 @@ func get_bone_rotation( bone_id : String ) -> Quat:
 	return bones[bone_id].rotation
 func get_bone_length( bone_id : String ) -> float:
 	return bones[bone_id].length * bones[bone_id].length_multiplier
+func get_bone_weight( bone_id : String ) -> float:
+	return bones[bone_id].weight_sum
 func get_bone_start_direction( bone_id : String ) -> Vector3:
 	return bones[bone_id].start_direction
 func get_bone_start_rotation( bone_id : String ) -> Quat:
@@ -153,44 +231,42 @@ func get_bone_modifier_master( bone_id : String ) -> String:
 	return bones[bone_id].modifier_master
 func get_bone_damped_transform( bone_id : String ) -> Array:
 	return bones[bone_id].damped_transform
-### SETTERS
+func get_bone_bind_ids( bone_id : String ) -> PoolIntArray:
+	return bones[bone_id].bind_ids
+func get_bone_fork_bind_ids( bone_id : String ) -> PoolIntArray:
+	return bones[bone_id].fork_bind_ids
+func get_bone_cage_bind_id( bone_id : String ) -> int:
+	return bones[bone_id].cage_bind_id
+### SETTERS #####################################################################################################
 func set_bone_position( bone_id : String, position : Vector3 ) -> void:
 	bones[bone_id].position = position
 func set_biassed_bone_position( bone_id : String, position : Vector3, weight : float ):
 	bones[bone_id].weight_sum += weight
-	bones[bone_id].weighted_vector_sum += position*weight
+	bones[bone_id].weighted_vector_sum += position * weight
 	bones[bone_id].position = bones[bone_id].weighted_vector_sum / bones[bone_id].weight_sum
 func set_bone_rotation( bone_id : String, rotation : Quat ) -> void:
 	bones[bone_id].rotation = rotation
 ## Modifier Stuff
 func set_bone_length_multiplier(bone_id : String, multiplier : float) -> void:
 	bones[bone_id].length_multiplier = multiplier
-func set_bone_chain_modifier(bone_id : String, modifier : int, node = null) -> void:
-	var bone_queue : PoolStringArray = []
-	var current_bone = bone_id
-	while true:
-		if current_bone == "-1":
-			break
-		else:
-			for child in bones[current_bone].children:
-				bone_queue.push_back(child)
-		
-		bones[current_bone].modifier_flags = modifier
-		bones[current_bone].modifier_master = bone_id
-		if modifier == MODIFIER.DAMPED_TRANSFORM and node != null:
-			bones[current_bone].velocity = Vector3.ZERO
-			update_bone_damped_transform(current_bone, node)
-		
-		if bones[current_bone].children.size() != 0:
-			current_bone = bone_queue[0]
-			bone_queue.remove(0)
-		else:
-			current_bone = "-1"
 func add_velocity_to_bone(bone_id : String, velocity : Vector3) -> Vector3:
 	bones[bone_id].velocity += velocity
 	return bones[bone_id].velocity
 func update_bone_damped_transform( bone_id : String, node ) -> void:
 	bones[bone_id].damped_transform = []
+	
+	if bones[bones[bone_id].parent].has("damped_transform"):
+		bones[bone_id].damped_transform.push_back( clamp(bones[bones[bone_id].parent].damped_transform[0] * node.stiffness_passed_down, 0.0, 1.0))
+		bones[bone_id].damped_transform.push_back( clamp(bones[bones[bone_id].parent].damped_transform[1] * node.damping_passed_down, 0.0, 1.0))
+		bones[bone_id].damped_transform.push_back( clamp(bones[bones[bone_id].parent].damped_transform[2] * node.mass_passed_down, 0.0, 1.0))
+	
+	else:
+		bones[bone_id].damped_transform.push_back(node.stiffness)
+		bones[bone_id].damped_transform.push_back(node.damping)
+		bones[bone_id].damped_transform.push_back(node.mass)
+	bones[bone_id].damped_transform.push_back(node.gravity)
+	
+	"""
 	if bones[bones[bone_id].parent].has("damped_transform"):
 		bones[bone_id].damped_transform.push_back(bones[bones[bone_id].parent].damped_transform[0] * node.StiffnessPassedDown)
 		bones[bone_id].damped_transform.push_back(bones[bones[bone_id].parent].damped_transform[1] * node.DampingPassedDown)
@@ -200,13 +276,29 @@ func update_bone_damped_transform( bone_id : String, node ) -> void:
 		bones[bone_id].damped_transform.push_back(node.Damping)
 		bones[bone_id].damped_transform.push_back(node.Mass)
 	bones[bone_id].damped_transform.push_back(node.Gravity)
+	"""
 
-### CLEAN UP
-func wipe_weights( bone_id : String ) -> void:
-	bones[bone_id].weight_sum = 0
-	bones[bone_id].weighted_vector_sum = Vector3.ZERO
-
-### DEBUG
+### CLEAN UP ####################################################################################################
+func wipe_weights() -> void:
+	for bone in bones.keys():
+		bones[bone].weight_sum = 0
+		bones[bone].weighted_vector_sum = Vector3.ZERO
+func wipe_modifiers() -> void:
+	for bone in bones.values():
+		if bone.modifier_flags == MODIFIER.NONE:
+			continue
+		if bone.modifier_flags & MODIFIER.BIND:
+			bone.erase("bind_ids")
+		if bone.modifier_flags & MODIFIER.FORK_BIND:
+			bone.erase("fork_bone_id")
+		if bone.modifier_flags & MODIFIER.SOLID:
+			bone.erase("modifier_master")
+		if bone.modifier_flags & MODIFIER.DAMPED_TRANSFORM:
+			bone.erase("modifier_master")
+			bone.erase("velocity")
+			bone.erase("damped_transform")
+		bone.modifier_flags = MODIFIER.NONE
+### DEBUG ######################################################################################################
 func cshow( properties : String = "parent,children", N : int = -1 ):
 	var props : PoolStringArray = properties.split(",")
 	for i in bones.keys():

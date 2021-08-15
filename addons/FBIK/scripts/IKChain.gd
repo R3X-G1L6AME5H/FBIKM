@@ -1,7 +1,7 @@
 tool
 extends Position3D
 
-const FBKIM_NODE_ID = 1  # THIS NODE'S INDENTIFIER
+const FBIKM_NODE_ID = 1  # THIS NODE'S INDENTIFIER
 
 var tip_bone_id : String = "-1"
 var root_bone_id : String = "-1"
@@ -47,7 +47,7 @@ func _get_property_list():
 ###############################################################################
 func _ready():
 	if Engine.editor_hint:
-		if get_parent().get("FBKIM_NODE_ID") == 0:  ## This is KinematicsManager's ID
+		if get_parent().get("FBIKM_NODE_ID") == 0:  ## This is KinematicsManager's ID
 			get_parent().connect("bone_names_obtained", self, "_update_parameters")
 
 func _update_parameters( bone_names : String ) -> void:

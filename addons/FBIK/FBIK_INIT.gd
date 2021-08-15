@@ -16,8 +16,9 @@ func _enter_tree():
 	
 	add_custom_type("KinematicsBind", "Node", preload("./scripts/IKBind.gd"), preload("icons/Bind.svg"))
 	add_custom_type("KinematicsFork", "Node", preload("./scripts/IKForkBind.gd"), preload("icons/ForkBind.svg"))
+	add_custom_type("KinematicsCage", "Node", preload("./scripts/IKCage.gd"), preload("icons/CageBind.svg"))
 	
-	add_custom_type("Spring", "Position3D", preload("./scripts/Spring.gd"), null)
+	add_custom_type("Spring", "Position3D", preload("./scripts/Spring.gd"),  preload("icons/Bind.svg"))
 	# scripts/IKSolidifier.gd
 
 func _exit_tree():

@@ -1,6 +1,6 @@
 tool
 extends Node
-const FBKIM_NODE_ID = 6  # THIS NODE'S INDENTIFIER
+const FBIKM_NODE_ID = 6  # THIS NODE'S INDENTIFIER
 
 
 var bone_id : String

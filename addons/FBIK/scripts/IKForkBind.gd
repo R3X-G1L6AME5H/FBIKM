@@ -1,12 +1,15 @@
 tool
 extends Node
-const FBKIM_NODE_ID = 5  # THIS NODE'S INDENTIFIER
+const FBIKM_NODE_ID = 5  # THIS NODE'S INDENTIFIER
 
 
 var bone_1 : String = "-1"
 var bone_2 : String = "-1"
 var bone_3 : String = "-1"
 var bone_target : String = "-1"
+export (bool) var reverse_fork = false
+
+var bind_id : int
 
 var length_1 : float = 0
 var length_2 : float = 0
@@ -74,10 +77,6 @@ func _get_property_list():
 	return result
 
 ###############################################################################
-func _ready():
-	if Engine.editor_hint:
-		if get_parent().get("FBKIM_NODE_ID") == 0:  ## This is KinematicsManager's ID
-			get_parent().connect("bone_names_obtained", self, "_update_parameters")
 
 func _update_parameters( bone_names : String ) -> void:
 	self._bone_names = bone_names
