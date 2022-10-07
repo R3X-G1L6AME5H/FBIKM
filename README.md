@@ -1,7 +1,10 @@
 # FBIKM - Full-Body Inverse Kinematics Manager
 
 ## Hi, Kids! Ya like robots?
-What is this? This is a Godot plugin made to be an imitation of Dr. Andreas Aristidou's Forward And Backward Reaching Inverse Kinematics [demonstration](https://www.youtube.com/watch?v=tN6RQ4yrNPU). It is a simple little tool that explores the wonders of the FABRIK algorithm.
+What is this? This is a Godot plugin made to be an imitation of Dr. Andreas Aristidou's Forward And Backward Reaching Inverse Kinematics [demonstration]
+(https://www.youtube.com/watch?v=tN6RQ4yrNPU). It is a simple little tool that explores the wonders of the FABRIK algorithm.
+
+![AAsWork](https://img.gs/czjpqfbdkz/full/http://www.andreasaristidou.com/publications/images/FABRIC_gif_1.gif)
 
 ## Why, should You care?
 You should care because this entire project was a mistake; a massive, 6 month spanning mistake. I entered this knowing nothing. I had but a singular goal in mind: to make procedual animations for a game. But all these months passed, and the game is nowhere closer to being complete. 
