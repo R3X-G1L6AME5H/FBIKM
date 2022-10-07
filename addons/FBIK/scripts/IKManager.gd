@@ -2,10 +2,21 @@ tool
 extends Node
 const FBIKM_NODE_ID = 0  # THIS NODE'S INDENTIFIER
 
+"""
+	FBIKM - Inverse Kinematics Manager
+		by Nemo Czanderlitch/Nino Čandrlić
+			@R3X-G1L       (godot assets store)
+			R3X-G1L6AME5H  (github)
+	This is the core of the active ragdolls. This joint attempts to match its own rotation with that of
+	the animation skeleton, creating the active radolls we al know and love.
+"""
+
+
 ## CONSTANTS ###############################################################################################
 const VirtualSkeleton = preload("VirtualSkeleton.gd")
 
 ### ALL OTHER NODES' IDS
+# (instead of comparing classes or scripts just compare the child's id with these to confirm that we are working with relevant nodes)
 const FBIKM_CHAIN            = 1
 const FBIKM_POLE             = 2
 const FBIKM_LOOK_AT          = 3
@@ -16,16 +27,18 @@ const FBIKM_SOLIDIFIER       = 7
 const FBIKM_DAMPED_TRANSFORM = 8
 const FBIKM_CAGE             = 9
 
-const VOID_ID = "-1" ### Add a move dynamic way to do this
+const VOID_ID = "-1" ### Add a more dynamic way to do this
 
 var _bone_names_4_children := "VOID:-1"
-signal bone_names_obtained(bone_names)
+signal bone_names_obtained(bone_names)  # the signal that updates the dropdown menu options for the child nodes
 
 ## PARAMETERS ##############################################################################################
 export (bool)     var enabled  = false setget _tick_enabled
 export (NodePath) var skeleton = null setget _set_skeleton
-export (int)      var max_iterations = 5
-export (float)    var minimal_distance = 0.01
+
+## FABRIK CONSTRAINTS
+export (int)      var max_iterations   = 5     ## bigger  = more precise = less performant
+export (float)    var minimal_distance = 0.01  ## smaller = more precise = less performant
 
 ### Debug ###
 var DEBUG_dump_bones = false   # Turn on
@@ -33,38 +46,47 @@ var DEBUG_bone_property = ""   # name bone property(position, rotation, etc.); l
 var DEBUG_entry_count = -1     # Show N bones; list all by default
 
 
-#### RUNTIME ENVIRONMENT
+#### RUNTIME ENVIRONMENT (tons of boilerplate)
 func _set_skeleton( path_2_skel : NodePath ):
 	if Engine.editor_hint:
-		## This is where the editor runtime is implemented
+		# Set up in-editor environment
 		var _temp = get_node_or_null(path_2_skel)
-		if _temp is Skeleton:
+		if _temp is Skeleton:   ## skeleton exists
 			skeleton = path_2_skel
-			
+
+			## get all bone's names for the children's dropdown menus
 			_bone_names_4_children = "VOID:-1,"
 			var n : int = _temp.get_bone_count()
 			for i in range(n):
 				_bone_names_4_children += _temp.get_bone_name(i)+":"+str(i)+","
+
 			_bone_names_4_children = _bone_names_4_children.rstrip(",")
-			emit_signal("bone_names_obtained", _bone_names_4_children)
-			#print(_bone_names_4_children)
-			_build_virtual_skeleton( true )
+			emit_signal("bone_names_obtained", _bone_names_4_children) ## update children's dropdown menus
+
+			_build_virtual_skeleton( true )  ## create the skeleton with important data
 			
 			for c in get_children():
 				connect_signals( c )
 			emit_signal("bone_names_obtained", _bone_names_4_children)
-			_reevaluate_drivers()
+
+			_reevaluate_drivers() ## reset driver configuration
+
 		else:
+			## if no skeleton clear all the memory
 			skeleton = null
 			_wipe_drivers()
 			virt_skel = null
 	else:
+		## no need to set up anything if the plugin is ran in-game
 		skeleton = path_2_skel
+
+
 func _tick_enabled( enable : bool ):
 	enabled = enable
 	if enabled == false and virt_skel != null:
 		if DEBUG_dump_bones: virt_skel.cshow(DEBUG_bone_property, DEBUG_entry_count)
 		virt_skel.revert()
+
 func _wipe_drivers() -> void:
 	_chains.clear()
 	_poles.clear()
@@ -72,6 +94,7 @@ func _wipe_drivers() -> void:
 	_binds.clear()
 	if virt_skel:
 		virt_skel.wipe_modifiers()
+
 func _build_virtual_skeleton( in_editor : bool ) -> int:
 	skel = get_node_or_null(skeleton)
 	if skel == null:
@@ -82,26 +105,36 @@ func _build_virtual_skeleton( in_editor : bool ) -> int:
 	return OK
 
 ## GLOBAL VARIABLES ########################################################################################
-var skel : Skeleton
-var virt_skel : VirtualSkeleton
+
+var skel : Skeleton               # skeleton to which the changes are applied
+var virt_skel : VirtualSkeleton   # an extended skeleton used to calculate the changes
+
+## all the posible drivers that need to be ran
 var _chains            := []   ### Binds and drivers are solved in hiearchycal order
 var _poles             := []
 var _look_ats          := []
 var _binds             := []
 var _fork_binds        := []
 var _cage_binds        := []
+
+
 ## INIT ####################################################################################################
 func _ready():
 	if not Engine.editor_hint: ## Execute in game
 		if not _build_virtual_skeleton( false ):
 			_evaluate_drivers()
-			if DEBUG_dump_bones:
+
+			if DEBUG_dump_bones:  ## print all the bones and their info
 				virt_skel.cshow()
+
+
+## LOAD AND ORGANIZE THE DRIVERS
 func _evaluate_drivers() -> void:
 	if virt_skel == null:
 		push_error("Tried to evaluate drivers but failed because there was no Skeleton Node assigned.")
 		return
-	
+
+	## run the evaluation relevant to the node processed
 	for node in self.get_children():
 		var type = node.get_script()
 		if node.get("FBIKM_NODE_ID") != null:
@@ -124,14 +157,21 @@ func _evaluate_drivers() -> void:
 					_eval_damped_transform_node( node )
 				FBIKM_CAGE:
 					_eval_cage_bind_node( node )
+
+## WIPE, THEN LOAD THE DRIVERS
 func _reevaluate_drivers() -> void:
 	_wipe_drivers()
 	_evaluate_drivers()
+
+
+## CHECKS, AND ASSINGMENTS FOR DRIVERS ##
+## ################################### ##
 func _eval_chain_node( chain ) -> void:
 	if not virt_skel.has_bone(chain.tip_bone_id):
 		push_error( "IK Chain [" + chain.name + "] ignored. Couldn't find the bone with id [" + chain.tip_bone_id + "]." )
 		return
 	self._chains.push_back(chain)
+
 func _eval_pole_node( pole ) -> void:
 	if not virt_skel.has_bone(str(pole.tip_bone_id)):
 		push_error( "IK Pole [" + pole.name + "] ignored. Couldn't find the bone with id [" + str(pole.tip_bone_id) + "]." )
@@ -142,6 +182,7 @@ func _eval_pole_node( pole ) -> void:
 		return
 	
 	self._poles.push_back(pole)
+
 func _eval_look_at_node( look_at ):
 	if not virt_skel.has_bone(look_at.bone_id):
 		push_error( "IK Look-At [" + look_at.name + "] ignored. Couldn't find the bone with id [" + str(look_at.bone_id) + "]." )
@@ -152,12 +193,14 @@ func _eval_look_at_node( look_at ):
 	
 	self._look_ats.push_back(look_at)
 	virt_skel.set_bone_modifier(look_at.bone_id, VirtualSkeleton.MODIFIER.LOOK_AT)
+
 func _eval_exaggerator_node( exaggerator ) -> void:
 	if not virt_skel.has_bone(exaggerator.bone_id):
 		push_error("IK Exaggerator [" + exaggerator.name + "] ignored. Invalid Bone Id.")
 		return
 	if not exaggerator.is_connected("multiplier_changed", self, "_on_exaggurator_change"):
 		var _trash = exaggerator.connect("multiplier_changed", self, "_on_exaggurator_change")
+
 func _eval_solidifier_node( solidifier ) -> void:
 	if not virt_skel.has_bone(solidifier.bone_id):
 		push_error("IK Solidifier [" + solidifier.name + "] ignored. Specified bone does not exist.")
@@ -166,11 +209,13 @@ func _eval_solidifier_node( solidifier ) -> void:
 		push_error("IK Solidifier [" + solidifier.name + "] ignored. The bone specified is a tip.")
 		return
 	virt_skel.set_bone_modifier(solidifier.bone_id, VirtualSkeleton.MODIFIER.SOLID)
+
 func _eval_damped_transform_node( damped_transform ) -> void:
 	if not virt_skel.has_bone(damped_transform.bone_id):
 		push_error("IK Damped Transform [" + damped_transform.name + "] ignored. Specified bone does not exist.")
 		return
 	virt_skel.set_bone_modifier(damped_transform.bone_id, VirtualSkeleton.MODIFIER.DAMPED_TRANSFORM, damped_transform)
+
 func _eval_bind_node( bind ) -> void:
 	if not virt_skel.has_bone(bind.bone_1):
 		push_error( "IK Bind [" + bind.name + "] ignored. Bone 1 ID [" + bind.bone_1 + "] is invalid." )
@@ -222,6 +267,7 @@ func _eval_bind_node( bind ) -> void:
 	bind.bind_id = self._binds.size()
 	self._binds.push_back(bind)
 	virt_skel.set_bone_modifier(VOID_ID, VirtualSkeleton.MODIFIER.BIND, bind)
+
 func _eval_fork_bind_node ( fork_bind ) -> void:
 	if not virt_skel.has_bone(fork_bind.bone_target):
 		push_error( "IK Fork Bind [" + fork_bind.name + "] ignored. Target Bone ID [" + fork_bind.bone_target + "] is invalid." )
@@ -242,6 +288,7 @@ func _eval_fork_bind_node ( fork_bind ) -> void:
 	fork_bind.bind_id = self._fork_binds.size()
 	self._fork_binds.push_back(fork_bind)
 	virt_skel.set_bone_modifier(VOID_ID, VirtualSkeleton.MODIFIER.FORK_BIND, fork_bind)
+
 func _eval_cage_bind_node( cage ) -> void:
 	if not virt_skel.has_bone(cage.backbone_1):
 		push_error( "IK Cage Bind [" + cage.name + "] ignored. Target Bone ID [" + cage.backbone_1 + "] is invalid." )
@@ -270,6 +317,7 @@ func _eval_cage_bind_node( cage ) -> void:
 	cage.bind_id = self._cage_binds.size()
 	self._cage_binds.push_back(cage)
 	virt_skel.set_bone_modifier(VOID_ID, VirtualSkeleton.MODIFIER.CAGE_BIND, cage)
+
 ## RUNTIME #################################################################################################
 func _physics_process(_delta):
 	if enabled and skel != null and virt_skel != null:
@@ -279,6 +327,9 @@ func _physics_process(_delta):
 		solve_look_ats( inverse_transform )
 		total_pass()
 		virt_skel.bake()
+
+
+
 func solve_chains( inverse_transform : Transform ) -> void:
 	var diff : float = 0
 	## No need to solve if distance is closed
@@ -315,18 +366,21 @@ func solve_chains( inverse_transform : Transform ) -> void:
 		for d in _chains:
 			diff += virt_skel.get_bone_position(d.tip_bone_id).distance_squared_to(inverse_transform.xform(d.get_target().origin))
 		can_solve -= 1
+
 func solve_poles( inverse_transform : Transform ) -> void:
 	for p in _poles:
 		solve_pole( str( p.root_bone_id ),
 			str( p.tip_bone_id ),
 			inverse_transform.xform(p.get_target().origin),
 			p.turn_to)
+
 func solve_look_ats( inverse_transform : Transform ) -> void:
 	for l in _look_ats:
 		solve_look_at( l.bone_id,
 					   inverse_transform.xform(l.get_target().origin),
 					   l.look_from,
 					   l.get("up-down_spin_override_angle") )
+
 func solve_binds( bone_id : String ) -> void:
 	var modifier_flags = virt_skel.get_bone_modifiers(bone_id)
 	
@@ -383,6 +437,8 @@ func solve_binds( bone_id : String ) -> void:
 	#if virt_skel.get_bone_parent(bone_id) != VOID_ID:
 	#	if virt_skel.get_bone_modifiers(virt_skel.get_bone_parent(bone_id)) & (VirtualSkeleton.MODIFIER.FORK_BIND | VirtualSkeleton.MODIFIER.BIND):
 	#		solve_binds(virt_skel.get_bone_parent(bone_id))
+
+
 func total_pass():
 	for chain in _chains:
 		solve_backwards( chain.root_bone_id,
@@ -431,6 +487,7 @@ func solve_look_at( bone_id : String, target : Vector3, side : int, spin_overrid
 	
 	virt_skel.set_bone_position( bone_id,
 								 pivot + (rotation * virt_skel.get_bone_start_direction(bone_id).normalized()) * virt_skel.get_bone_length(bone_id))
+
 func solve_loop( b1_id : String, b2_id : String, b3_id : String, 
 				 b1_correction : String, b2_correction : String, b3_correction : String, 
 				 b1_b2_length : float, b2_b3_length : float, b3_b1_length : float,
@@ -495,6 +552,7 @@ func solve_loop( b1_id : String, b2_id : String, b3_id : String,
 	
 	virt_skel.set_bone_position( b2_id, 
 								 calc_next( virt_skel.get_bone_position(b1_id), virt_skel.get_bone_position(b2_id), b1_b2_length ))
+
 func solve_fork( bone_1_id : String, bone_2_id : String, bone_3_id : String, bone_target_id : String, length_1 : float, length_2 : float, length_3 : float, reverse_fork : bool ) -> void:
 	## Correct target // bone 1's position isn't altered
 	virt_skel.set_bone_position( bone_target_id, 
@@ -511,6 +569,7 @@ func solve_fork( bone_1_id : String, bone_2_id : String, bone_3_id : String, bon
 									 calc_next( virt_skel.get_bone_position(bone_2_id), virt_skel.get_bone_position(bone_target_id), length_2 ))
 		virt_skel.set_bone_position( bone_target_id, 
 									 calc_next( virt_skel.get_bone_position(bone_3_id), virt_skel.get_bone_position(bone_target_id), length_3 ))
+
 func solve_pole( root_id : String, tip_id : String, target : Vector3, side : int ):
 	if not virt_skel.has_bone(root_id) and root_id != VOID_ID:
 		return
@@ -547,6 +606,7 @@ func solve_pole( root_id : String, tip_id : String, target : Vector3, side : int
 		previous_bone = current_bone
 		current_bone = next_bone
 		next_bone = virt_skel.get_bone_parent(next_bone)
+
 func solve_forwards( root_id : String, origin : Vector3) -> void:
 	if not virt_skel.has_bone(root_id) and root_id != VOID_ID:
 		return
@@ -635,6 +695,7 @@ func solve_forwards( root_id : String, origin : Vector3) -> void:
 			current_bone = "-1"
 			## Remove weights so that they do not obstruct future backwards solve
 			virt_skel.wipe_weights()
+
 func solve_backwards( root_id : String, tip_id : String, target : Transform, weight : float) -> void:
 	if not virt_skel.has_bone(tip_id):
 		return
@@ -649,6 +710,7 @@ func solve_backwards( root_id : String, tip_id : String, target : Transform, wei
 		virt_skel.set_biassed_bone_position(current_bone, current_target, weight) ## current_weight
 		current_target = calc_next(virt_skel.get_bone_position(current_bone), virt_skel.get_bone_position(virt_skel.get_bone_parent(current_bone)), virt_skel.get_bone_length(current_bone) )
 		current_bone = virt_skel.get_bone_parent(current_bone)
+
 func solve_solidifier( bone_id : String ) -> void:
 	var rotation := virt_skel.get_bone_rotation(virt_skel.get_bone_parent(bone_id))
 	
@@ -667,6 +729,7 @@ func solve_solidifier( bone_id : String ) -> void:
 		
 		
 		virt_skel.set_bone_rotation( current_bone, rotation * virt_skel.get_bone_start_rotation(current_bone) )
+
 ## CALCULATORS ############################################################################################
 static func signed_angle( from : Vector3, to : Vector3, axis : Vector3 ) -> float:
 		var plane = Plane( axis.cross(from), 0 )
@@ -674,8 +737,10 @@ static func signed_angle( from : Vector3, to : Vector3, axis : Vector3 ) -> floa
 			return from.angle_to(to)
 		else:
 			return -from.angle_to(to)
+
 static func calc_next( from : Vector3, to : Vector3, length : float ) -> Vector3:
 	return from + ( (to - from).normalized() * length )
+
 static func from_to_rotation(from : Vector3, to : Vector3) -> Quat:
 		var k_cos_theta : float = from.dot(to)
 		var k : float = sqrt(pow(from.length(), 2.0) * pow(to.length(), 2.0))
@@ -688,6 +753,7 @@ static func from_to_rotation(from : Vector3, to : Vector3) -> Quat:
 			return Quat(0, 0, 0, 1)
 		
 		return Quat(axis.x, axis.y, axis.z, k_cos_theta + k).normalized()
+
 static func rotate_along_axis( rotation : Quat, pivot : Vector3, target : Vector3, side : int) -> Quat:
 	var p = Plane( rotation * Vector3.UP, 0.0 )
 	p.d = p.distance_to(pivot)
@@ -707,6 +773,7 @@ static func rotate_along_axis( rotation : Quat, pivot : Vector3, target : Vector
 							  projP - pivot,
 							  p.normal )
 	return Quat( p.normal, angle ) * rotation
+
 ## SIGNALS ################################################################################################
 func _on_exaggurator_change(bone_id,  length_multiplier) -> void:
 	virt_skel.set_bone_length_multiplier(bone_id, length_multiplier)
