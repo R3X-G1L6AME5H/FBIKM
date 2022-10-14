@@ -1,15 +1,25 @@
 tool
 extends Node
-const FBIKM_NODE_ID = 6  # THIS NODE'S INDENTIFIER
+const FBIKM_NODE_ID = 6  # THIS NODE'INDENTIFIER S
+
+"""
+        FBIKM - Exaggerator
+                by Nemo Czanderlitch/Nino Čandrlić
+                        @R3X-G1L       (godot assets store)
+                        R3X-G1L6AME5H  (github)
+		Scales the specified bone. Allows for more live animations.
+"""
 
 
 var bone_id : String
 export (float) var length_multiplier = 1.0 setget _set_length
-## export (float) var scale_multiplier
 var _bone_names = "VOID:-1"
+
 
 signal length_changed(bone_id, length_multiplier)
 
+
+## BOILERPLATE FOR DROPDOWN MENU
 func _get( property : String ):
 	match property:
 		"bone_id" :
@@ -35,10 +45,14 @@ func _get_property_list():
 	return result
 
 ###############################################################################
+
+
+## updates the dropdown menu
 func _update_parameters( bone_names : String ) -> void:
 	self._bone_names = bone_names
 	property_list_changed_notify()
 
+## Notify Virtual Skeleton of the size change
 func _set_length( value ):
 	length_multiplier = value
 	emit_signal("length_changed", bone_id, length_multiplier )
