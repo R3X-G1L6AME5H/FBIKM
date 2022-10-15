@@ -2,9 +2,20 @@ tool
 extends Node
 const FBIKM_NODE_ID = 7  # THIS NODE'S INDENTIFIER
 
-var bone_id : String = "-1"
-var _bone_names = "VOID:-1"
+"""
+        FBIKM - Solidifier
+                by Nemo Czanderlitch/Nino Čandrlić
+                        @R3X-G1L       (godot assets store)
+                        R3X-G1L6AME5H  (github)
+		Stiffens all the bones that come after it.
+"""
 
+
+var bone_id : String = "-1"
+
+
+## BOILERPLATE FOR DROPDOWN MENU
+var _bone_names = "VOID:-1"
 func _get( property : String ):
 	match property:
 		"bone_id" :
@@ -28,13 +39,15 @@ func _get_property_list():
 			"hint_string": _bone_names
 	})
 	return result
-
 ###############################################################################
+
 func _ready():
 	if Engine.editor_hint:
 		if get_parent().get("FBIKM_NODE_ID") == 0:  ## This is KinematicsManager's ID
-			get_parent().connect("bone_names_obtained", self, "_update_parameters")
+			get_parent().connect("bone_names_obtained", self, "_update_parameters") ## recieve a update on available bones
 
+
+## update the dropdown menu
 func _update_parameters( bone_names : String ) -> void:
 	self._bone_names = bone_names
 	property_list_changed_notify()
