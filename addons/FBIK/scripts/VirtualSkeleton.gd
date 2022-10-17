@@ -1,5 +1,15 @@
 extends Reference
 
+"""
+        FBIKM - Virtual Skeleton
+                by Nemo Czanderlitch/Nino Čandrlić
+                        @R3X-G1L       (godot assets store)
+                        R3X-G1L6AME5H  (github)
+		This is an higher level representation of the Godot Skeleton Node; it holds more data.
+		It stores child bones, thusly allowing for solving branches in the Skeleton.
+		Additionally, it holds more rotation data for smoother solutions.
+"""
+
 enum MODIFIER {
 	NONE = 0,
 	BIND = 1,
@@ -95,7 +105,7 @@ func add_bone( bone_id : String, parent_id : String, transform : Transform, buil
 		### Constraint data
 		modifier_flags         = MODIFIER.NONE,
 		
-		### Added automatically by neccessity
+		### Added automatically as neccessery
 		# modifier_master        = ""             // used to find the base rotation on solidifier & damped transform
 		# velocity               = Vector3.ZERO   // used by damped transform
 		# damped_transform       = [ stiffness, mass, damping, gravity ] // static variables which control the damped transform
@@ -109,6 +119,8 @@ func add_bone( bone_id : String, parent_id : String, transform : Transform, buil
 	if parent_id == "-1":
 		roots.push_back(bone_id)
 		bones[ str(bone_id) ].initial_position = transform.origin
+
+
 func set_bone_modifier(bone_id : String, modifier : int, node = null) -> void:
 	if modifier == MODIFIER.LOOK_AT:
 		bones[bone_id].modifier_flags |= MODIFIER.LOOK_AT
@@ -187,6 +199,7 @@ func _notification(what):
 		skel.clear_bones_global_pose_override()
 		bones.clear()
 
+
 ### WRITE VIRTUAL SKELETON TO REAL SKELETON
 func bake() -> void:
 	for bone_id in bones.keys():
@@ -195,8 +208,11 @@ func bake() -> void:
 			new_pose.origin = bones[bone_id].position
 			new_pose.basis  = Basis(bones[bone_id].rotation)
 			skel.set_bone_global_pose_override( int(bone_id), new_pose, 1.0, true )
+
+## Reset bone transform to its initial value
 func revert() -> void:
 	skel.clear_bones_global_pose_override()
+
 
 ### GETTERS #####################################################################################################
 ## Navigating stuff
@@ -209,6 +225,7 @@ func get_bone_children_count( bone_id : String ) -> int:
 	return bones[bone_id].children.size()
 func get_bone_children( bone_id : String ) -> Array:
 	return bones[bone_id].children
+
 ## Solving stuff
 func get_bone_position( bone_id : String ) -> Vector3:
 	return bones[bone_id].position
@@ -224,6 +241,7 @@ func get_bone_start_rotation( bone_id : String ) -> Quat:
 	return bones[bone_id].start_rotation
 func has_bone( bone_id : String ) -> bool:
 	return bones.has(bone_id)
+
 ## Modifier stuff
 func get_bone_modifiers( bone_id : String ) -> int:
 	return bones[bone_id].modifier_flags
@@ -237,6 +255,7 @@ func get_bone_fork_bind_ids( bone_id : String ) -> PoolIntArray:
 	return bones[bone_id].fork_bind_ids
 func get_bone_cage_bind_id( bone_id : String ) -> int:
 	return bones[bone_id].cage_bind_id
+
 ### SETTERS #####################################################################################################
 func set_bone_position( bone_id : String, position : Vector3 ) -> void:
 	bones[bone_id].position = position
@@ -252,9 +271,10 @@ func set_bone_length_multiplier(bone_id : String, multiplier : float) -> void:
 func add_velocity_to_bone(bone_id : String, velocity : Vector3) -> Vector3:
 	bones[bone_id].velocity += velocity
 	return bones[bone_id].velocity
+
+## Physics Simulations
 func update_bone_damped_transform( bone_id : String, node ) -> void:
 	bones[bone_id].damped_transform = []
-	
 	if bones[bones[bone_id].parent].has("damped_transform"):
 		bones[bone_id].damped_transform.push_back( clamp(bones[bones[bone_id].parent].damped_transform[0] * node.stiffness_passed_down, 0.0, 1.0))
 		bones[bone_id].damped_transform.push_back( clamp(bones[bones[bone_id].parent].damped_transform[1] * node.damping_passed_down, 0.0, 1.0))
@@ -298,6 +318,7 @@ func wipe_modifiers() -> void:
 			bone.erase("velocity")
 			bone.erase("damped_transform")
 		bone.modifier_flags = MODIFIER.NONE
+
 ### DEBUG ######################################################################################################
 func cshow( properties : String = "parent,children", N : int = -1 ):
 	var props : PoolStringArray = properties.split(",")
